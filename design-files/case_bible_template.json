@@ -1,0 +1,72 @@
+{
+  "case_id": "case_2026_03_ortiga_like",
+  "meta": {
+    "title": "The Forge at Fairhaven",
+    "setting": { "city": "Fictional", "year": 2012 },
+    "content_warnings": ["violence_non_graphic"],
+    "difficulty": 3,
+    "estimated_playtime_minutes": 240
+  },
+  "ground_truth": {
+    "victim": "NPC_ID",
+    "killer": "NPC_ID",
+    "motive": "…",
+    "means": "…",
+    "opportunity": "…",
+    "timeline": [{ "ts": "2012-05-12T21:13", "event": "…" }],
+    "red_herrings": ["…"],
+    "canonical_facts": ["fact_id_1", "fact_id_2"]
+  },
+  "characters": [{
+    "npc_id": "npc_anna",
+    "role": "suspect|witness|investigator",
+    "bio": "…",
+    "relationships": [{"to": "npc_bob", "type": "coworker"}],
+    "alibis": [{"claim": "…", "status": "true|false|unknown", "proof": ["evidence_id_x"]}]
+  }],
+  "objectives": [{
+    "objective_id": "obj_1",
+    "prompt": "Prove the official story is wrong",
+    "unlock": { "type": "start" },
+    "validation": {
+      "type": "proof_set",
+      "accepted_answers": ["npc_anna"],
+      "required_evidence_refs": ["ev_12", "ev_27"]
+    },
+    "rewards": {
+      "evidence_drop": ["ev_41", "ev_42"],
+      "narration_script": "script_obj1_complete"
+    },
+    "hint_ladder": [
+      { "tier": 1, "hint": "…" },
+      { "tier": 2, "hint": "…" },
+      { "tier": 3, "hint": "…" },
+      { "tier": "reveal", "reveal": "…" }
+    ]
+  }],
+  "evidence": [{
+    "evidence_id": "ev_12",
+    "type": "photo|report|map|recording|handwriting|webpage",
+    "title": "Coroner Report",
+    "source": "…",
+    "unlock_rule": "start|after_obj_1|after_obj_2",
+    "content": {
+      "text": "…",
+      "media_url": "…",
+      "transcript": "…"
+    },
+    "tags": ["time", "injury", "contradiction"],
+    "item_hints": [
+      { "type": "hint", "text": "…" },
+      { "type": "reveal", "text": "…" }
+    ]
+  }],
+  "solution_graph": {
+    "nodes": ["fact_id_1", "ev_12", "obj_1"],
+    "edges": [{"from": "ev_12", "to": "fact_id_1", "type": "supports"}]
+  },
+  "qa": {
+    "consistency_checks": ["no_real_places", "no_public_figure_names", "no_trademark_logos"],
+    "playtest_runs": [{ "date": "2026-04-10", "issues": ["…"] }]
+  }
+}
