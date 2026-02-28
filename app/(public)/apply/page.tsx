@@ -1,4 +1,5 @@
 import { ApplyForm } from "@/components/auth/apply-form";
+import { LegalNotice } from "@/components/auth/legal-notice";
 
 export default function ApplyPage() {
   return (
@@ -8,6 +9,7 @@ export default function ApplyPage() {
         Submit your candidate dossier to the Ashfall Investigative Collective.
       </p>
       <ApplyForm />
+      <LegalNotice />
     </section>
   );
 }

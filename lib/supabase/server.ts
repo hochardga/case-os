@@ -20,13 +20,15 @@ export function createServerSupabaseClient() {
     NEXT_PUBLIC_SUPABASE_ANON_KEY,
     {
       cookies: {
-        getAll() {
-          return cookieStore.getAll();
+        async getAll() {
+          const store = await cookieStore;
+          return store.getAll();
         },
-        setAll(cookiesToSet: CookieToSet[]) {
+        async setAll(cookiesToSet: CookieToSet[]) {
           try {
+            const store = await cookieStore;
             cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
+              store.set(name, value, options)
             );
           } catch {
             // Server Components cannot always set cookies directly.

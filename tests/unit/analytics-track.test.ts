@@ -21,13 +21,14 @@ describe("analytics track adapter", () => {
   it("builds event envelope with required common properties", () => {
     const event = buildAnalyticsEvent("auth_login_succeeded", {
       user_id: "user-1",
-      method: "password"
+      method: "password",
+      redirect_target: "/archive"
     });
 
     expect(event.event_name).toBe("auth_login_succeeded");
     expect(event.user_id).toBe("user-1");
     expect(event.source).toBe("server");
-    expect(event.phase).toBe("phase-001");
+    expect(event.phase).toBe("phase-002");
     expect(event.session_id).toContain("session-");
     expect(new Date(event.timestamp).toString()).not.toBe("Invalid Date");
   });
@@ -43,7 +44,8 @@ describe("analytics track adapter", () => {
 
     trackEvent("auth_login_succeeded", {
       user_id: "user-1",
-      method: "password"
+      method: "password",
+      redirect_target: "/archive"
     });
 
     await flushEventQueue();
@@ -83,11 +85,27 @@ describe("analytics track adapter", () => {
 
     trackEvent("auth_login_succeeded", {
       user_id: "user-1",
-      method: "password"
+      method: "password",
+      redirect_target: "/archive"
     });
 
     await flushEventQueue();
     expect(infoSpy).toHaveBeenCalled();
   });
-});
 
+  it("supports phase 2 payload contracts for logout and account deletion events", () => {
+    const logoutEvent = buildAnalyticsEvent("auth_logout", {
+      user_id: "user-1",
+      initiator: "user"
+    });
+    const deletionEvent = buildAnalyticsEvent("auth_account_deletion_requested", {
+      user_id: "user-1",
+      request_channel: "self_service"
+    });
+
+    expect(logoutEvent.initiator).toBe("user");
+    expect(logoutEvent.phase).toBe("phase-002");
+    expect(deletionEvent.request_channel).toBe("self_service");
+    expect(deletionEvent.phase).toBe("phase-002");
+  });
+});

@@ -22,6 +22,17 @@ describe("mapAuthError", () => {
     expect(result.status).toBe(409);
   });
 
+  it("maps duplicate callsign unique violations", () => {
+    const result = mapAuthError({
+      code: "23505",
+      message:
+        'duplicate key value violates unique constraint "profiles_callsign_ci_unique"'
+    });
+
+    expect(result.code).toBe("CALLSIGN_ALREADY_IN_USE");
+    expect(result.status).toBe(409);
+  });
+
   it("maps weak password errors", () => {
     const result = mapAuthError({
       message: "Password should be at least 6 characters."
@@ -41,6 +52,36 @@ describe("mapAuthError", () => {
     expect(result.status).toBe(429);
   });
 
+  it("maps unverified email errors", () => {
+    const result = mapAuthError({
+      code: "email_not_confirmed",
+      message: "Email not confirmed"
+    });
+
+    expect(result.code).toBe("UNVERIFIED_EMAIL");
+    expect(result.status).toBe(403);
+  });
+
+  it("maps invalid or expired token errors", () => {
+    const result = mapAuthError({
+      code: "otp_expired",
+      message: "OTP expired"
+    });
+
+    expect(result.code).toBe("TOKEN_INVALID_OR_EXPIRED");
+    expect(result.status).toBe(400);
+  });
+
+  it("maps service outages and network errors", () => {
+    const result = mapAuthError({
+      status: 503,
+      message: "Service unavailable"
+    });
+
+    expect(result.code).toBe("SERVICE_UNAVAILABLE");
+    expect(result.status).toBe(503);
+  });
+
   it("falls back to unknown for unrecognized errors", () => {
     const result = mapAuthError(new Error("Something else happened"));
 
@@ -48,4 +89,3 @@ describe("mapAuthError", () => {
     expect(result.status).toBe(400);
   });
 });
-

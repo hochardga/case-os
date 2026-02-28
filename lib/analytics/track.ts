@@ -7,9 +7,15 @@ import {
   type TrackEventContext
 } from "@/lib/analytics/events";
 
-type AnalyticsProvider = "console" | "posthog";
+type AnalyticsProvider = "console" | "posthog" | "memory";
+type TestAnalyticsEvent = AnalyticsEvent<AnalyticsEventName>;
+const testAnalyticsEvents: TestAnalyticsEvent[] = [];
 
 function getProvider(): AnalyticsProvider {
+  if (process.env.ANALYTICS_PROVIDER === "memory") {
+    return "memory";
+  }
+
   if (process.env.ANALYTICS_PROVIDER === "posthog") {
     return "posthog";
   }
@@ -86,10 +92,20 @@ function dispatchToConsole(event: AnalyticsEvent<AnalyticsEventName>) {
   }
 }
 
+function dispatchToMemory(event: AnalyticsEvent<AnalyticsEventName>) {
+  testAnalyticsEvents.push(event);
+}
+
 async function dispatchEvent(event: AnalyticsEvent<AnalyticsEventName>) {
   try {
-    if (getProvider() === "posthog") {
+    const provider = getProvider();
+    if (provider === "posthog") {
       await dispatchToPostHog(event);
+      return;
+    }
+
+    if (provider === "memory") {
+      dispatchToMemory(event);
       return;
     }
 
@@ -108,3 +124,10 @@ export function trackEvent<E extends AnalyticsEventName>(
   void dispatchEvent(event as AnalyticsEvent<AnalyticsEventName>);
 }
 
+export function getAnalyticsTestEvents() {
+  return [...testAnalyticsEvents];
+}
+
+export function resetAnalyticsTestEvents() {
+  testAnalyticsEvents.length = 0;
+}

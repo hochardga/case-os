@@ -3,6 +3,8 @@ import { cookies } from "next/headers";
 import type { ReactNode } from "react";
 
 import { AppShell } from "@/components/app-shell";
+import { trackEvent } from "@/lib/analytics/track";
+import { getServerSessionUser } from "@/lib/supabase/server";
 
 import "./globals.css";
 
@@ -15,25 +17,35 @@ type RootLayoutProps = {
   children: ReactNode;
 };
 
-function hasSupabaseAuthCookie() {
-  const cookieStore = cookies();
-  const hasSupabaseCookie = cookieStore
-    .getAll()
-    .some((cookie) => cookie.name.startsWith("sb-") && cookie.name.includes("-auth-token"));
-  if (hasSupabaseCookie) {
-    return true;
-  }
-
-  // Test-only bypass used by Playwright to validate protected-route behavior.
+async function hasE2EBypassUserCookie() {
+  const cookieStore = await cookies();
   if (process.env.PHASE1_E2E_AUTH_BYPASS === "1") {
     return cookieStore.get("phase1-e2e-user") !== undefined;
   }
 
-  return false;
+  return null;
 }
 
-export default function RootLayout({ children }: RootLayoutProps) {
-  const isAuthenticated = hasSupabaseAuthCookie();
+async function resolveAuthenticatedState() {
+  const bypassState = await hasE2EBypassUserCookie();
+  if (bypassState !== null) {
+    return bypassState;
+  }
+
+  try {
+    const user = await getServerSessionUser();
+    return Boolean(user?.id);
+  } catch {
+    return false;
+  }
+}
+
+export default async function RootLayout({ children }: RootLayoutProps) {
+  const isAuthenticated = await resolveAuthenticatedState();
+  trackEvent("auth_nav_state_rendered", {
+    is_authenticated: isAuthenticated,
+    has_flicker: false
+  });
 
   return (
     <html lang="en">

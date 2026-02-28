@@ -1,19 +1,22 @@
-# Ashfall Case Library (Phase 1)
+# Ashfall Case Library (Phase 2)
 
-Ashfall Case Library is a Next.js + Supabase Phase 1 foundation build that proves:
+Ashfall Case Library is a Next.js + Supabase app with hardened authentication UX and protected-route behavior.
 
-- apply/login/logout/reset auth flows
-- server-protected `/archive` route
-- profile write/read from Postgres (`public.profiles`)
-- baseline unit + E2E testing harness
+Phase 2 delivers:
+
+- auth-aware navigation and protected route guards with `next` destination preservation
+- hardened apply/login/reset/logout/session-expiry flows
+- verification resend and account deletion request entry point
+- rate limiting for login, password reset, and verification resend
+- Phase 2 analytics contracts and deterministic test harnesses
 
 ## Prerequisites
 
 - Node.js 20 LTS (recommended) or Node.js >= 18.17
 - npm
-- A Supabase project (hosted)
+- Supabase project (hosted)
 
-## Quick Start (<= 15 Minutes)
+## Quick Start
 
 1. Install dependencies:
 
@@ -27,15 +30,16 @@ npm install
 cp .env.example .env.local
 ```
 
-3. Populate `.env.local`:
+3. Populate `.env.local` with required variables:
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
-4. Apply Phase 1 migration in Supabase SQL Editor:
+4. Apply migrations in Supabase SQL Editor:
 
-- Open `supabase/migrations/20260227171500_profiles.sql`
-- Run SQL in your Supabase project
+- `supabase/migrations/20260227171500_profiles.sql`
+- `supabase/migrations/20260228103000_auth_rate_limits.sql`
+- `supabase/migrations/20260228113000_account_deletion_requests.sql`
 
 5. Start local dev server:
 
@@ -51,30 +55,75 @@ Use `.env.local` for local development.
 
 Required:
 
-- `NEXT_PUBLIC_SUPABASE_URL`: Supabase project URL (must be a valid absolute URL)
+- `NEXT_PUBLIC_SUPABASE_URL`: Supabase project URL
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Supabase anon/public key
 
 Optional analytics:
 
-- `ANALYTICS_PROVIDER`: `console` or `posthog` (defaults to auto-detect)
+- `ANALYTICS_PROVIDER`: `console`, `posthog`, or `memory` (test harness)
 - `POSTHOG_HOST`: PostHog host URL (for example `https://app.posthog.com`)
 - `POSTHOG_API_KEY`: PostHog project key
 
-Test-only:
+Optional auth/rate-limit server settings:
 
-- `PHASE1_E2E_AUTH_BYPASS`: used by Playwright config during E2E runs; do not set for normal app usage
+- `SUPABASE_SERVICE_ROLE_KEY`: required only when `AUTH_RATE_LIMIT_STORE=database`
+- `AUTH_RATE_LIMIT_STORE`: `memory` or `database` (`database` requires service role)
+- `AUTH_RATE_LIMIT_SALT`: salt for subject hashing
+- `AUTH_RATE_LIMIT_WINDOW_SECONDS`: global rate-limit window fallback
+- `AUTH_RATE_LIMIT_BLOCK_SECONDS`: global block duration fallback
+- `AUTH_RATE_LIMIT_LOGIN_MAX_ATTEMPTS`
+- `AUTH_RATE_LIMIT_LOGIN_WINDOW_SECONDS`
+- `AUTH_RATE_LIMIT_LOGIN_BLOCK_SECONDS`
+- `AUTH_RATE_LIMIT_PASSWORD_RESET_MAX_ATTEMPTS`
+- `AUTH_RATE_LIMIT_PASSWORD_RESET_WINDOW_SECONDS`
+- `AUTH_RATE_LIMIT_PASSWORD_RESET_BLOCK_SECONDS`
+- `AUTH_RATE_LIMIT_VERIFICATION_RESEND_MAX_ATTEMPTS`
+- `AUTH_RATE_LIMIT_VERIFICATION_RESEND_WINDOW_SECONDS`
+- `AUTH_RATE_LIMIT_VERIFICATION_RESEND_BLOCK_SECONDS`
 
-## Supabase Setup Notes
+Test-only (do not set in production):
 
-1. Ensure Email auth provider is enabled.
-2. Apply Phase 1 migration for `public.profiles`.
-3. In Supabase Auth URL configuration:
-   - Set Site URL to your production Vercel URL.
-   - Add Redirect URLs for local + production auth/reset routes. Recommended:
-     - `http://localhost:3000/login`
-     - `http://localhost:3000/reset-password`
-     - `https://<your-vercel-domain>/login`
-     - `https://<your-vercel-domain>/reset-password`
+- `PHASE1_E2E_AUTH_BYPASS`
+- `ANALYTICS_TEST_MODE`
+
+Supabase Management API (for hosted email template deploys):
+
+- `SUPABASE_PROJECT_REF`
+- `SUPABASE_ACCESS_TOKEN`
+- `SUPABASE_RECOVERY_TEMPLATE_PATH` (optional, default `supabase/email-templates/recovery.html`)
+- `SUPABASE_RECOVERY_TEMPLATE_SUBJECT` (optional)
+
+## Version-Controlled Recovery Email Template
+
+The reset-password email template is stored in source at:
+
+- `supabase/email-templates/recovery.html`
+
+Deploy the template + subject to your hosted Supabase project:
+
+```bash
+npm run deploy:email:recovery-template
+```
+
+Notes:
+
+- The deploy script automatically loads `.env.local` (if present).
+- Shell-exported env vars still work and can override `.env.local` values.
+
+Preview what would be deployed without updating Supabase config:
+
+```bash
+npm run deploy:email:recovery-template -- --dry-run
+```
+
+## Auth Flow Summary (Phase 2)
+
+- Apply: `/apply` -> `/apply/review` -> verify via callback -> `/apply/accepted`
+- Login: `/login` supports safe `next` destination and blocks unverified users
+- Password reset: `/reset-password` request -> callback recovery -> `/reset-password/update`
+- Protected routes: `/archive` and `/candidate-file` redirect unauthenticated users to `/login?next=<path>`
+- Logout: clears session and returns to `/`; back navigation does not expose protected content
+- Session expiry: redirects to `/login?next=<path>&session=expired`
 
 ## Local Verification Commands
 
@@ -86,50 +135,78 @@ npm run test:unit
 npm run test:e2e
 ```
 
-## Vercel Deployment (Phase 1)
+## Test Coverage Highlights
 
-1. Import this repository in Vercel.
-2. Add environment variables (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`) for:
-   - Production
-   - Preview
-   - Development
-3. Redeploy.
-4. Update Supabase Site URL/Redirect URLs to include the deployed domain.
+Phase 2 required auth scenarios are covered in Playwright suites under `tests/e2e`:
 
-## Production Smoke Checklist (Manual)
+- register -> verify -> login -> protected route
+- duplicate registration neutral messaging
+- failed login sanitized messaging
+- full password reset request + update cycle
+- expired reset token recovery path
+- logout and protected-route blocking
 
-Use the checklist in `phases/phase-001/phase-001-deployment-proof.md`.
+Unit suites under `tests/unit` cover:
 
-Required smoke path:
+- auth schemas/validation
+- auth error mapping
+- rate-limit behavior
+- analytics contract and route telemetry emission
 
-1. Apply new user
-2. Login
-3. Verify `/archive` renders callsign
-4. Logout and verify redirect to `/login`
-5. Confirm telemetry events:
-   - `auth_login_succeeded`
-   - `archive_access_viewed`
-   - `auth_logout`
+## Supabase Auth Configuration Notes
+
+1. Ensure Email auth provider is enabled.
+2. Set Site URL to production domain.
+3. Add redirect URLs for local + production callback flows, including:
+   - `/auth/callback?type=signup`
+   - `/auth/callback?type=recovery`
+4. Keep callback destinations aligned with app routes:
+   - `/apply/accepted`
+   - `/reset-password/update`
+
+## Vercel Deployment
+
+1. Import repository in Vercel.
+2. Set environment variables:
+   - Required public vars (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`)
+   - Optional server vars for analytics and database-backed rate limiting
+3. Apply migrations in production Supabase project.
+4. Redeploy and run production smoke checklist.
+
+## Phase 2 Smoke Checklist (Manual)
+
+- [ ] Apply flow reaches review/accepted
+- [ ] Unverified login blocked with resend guidance
+- [ ] Verified login reaches protected archive
+- [ ] Password reset request and reset update succeed
+- [ ] Expired reset token shows recovery CTA
+- [ ] Logout redirects to landing and protected routes remain blocked
+- [ ] Telemetry observed for:
+  - [ ] `auth_login_succeeded`
+  - [ ] `auth_login_failed`
+  - [ ] `auth_password_reset_requested`
+  - [ ] `auth_password_updated`
+  - [ ] `auth_rate_limited`
 
 ## Troubleshooting
 
-`getaddrinfo ENOTFOUND <project>.supabase.com`:
+`getaddrinfo ENOTFOUND <project>.supabase.co`:
 
-- Usually a bad Supabase URL host in env vars.
-- Re-copy `NEXT_PUBLIC_SUPABASE_URL` directly from Supabase project settings.
+- Usually an invalid Supabase URL host.
+- Re-copy `NEXT_PUBLIC_SUPABASE_URL` from Supabase settings.
 
-`Missing required Supabase environment variables`:
+`Missing SUPABASE_SERVICE_ROLE_KEY for database rate limiting`:
 
-- `.env.local` is missing required keys.
-- Verify variable names exactly match `.env.example`.
+- `AUTH_RATE_LIMIT_STORE=database` is set without service role key.
+- Either provide key server-side or use `AUTH_RATE_LIMIT_STORE=memory`.
 
 `Authentication request failed. Please try again.`:
 
 - Generic mapped auth error from provider/runtime.
-- Check server logs for underlying cause (invalid env, network, provider outage, etc.).
+- Check server logs and env values first.
 
 ## Security Notes
 
-- Never commit real keys to git.
+- Never commit real keys.
 - `.env*` files are gitignored.
-- Service-role keys are not required for this Phase 1 app flow and must never be exposed to client code.
+- Service role keys are server-only and must never be exposed to client code.

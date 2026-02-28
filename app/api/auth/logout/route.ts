@@ -17,9 +17,10 @@ export async function POST() {
     }
 
     trackEvent("auth_logout", {
-      user_id: user?.id ?? null
+      user_id: user?.id ?? null,
+      initiator: "user"
     });
-    return apiSuccess({ next: "/login" });
+    return apiSuccess({ next: "/" });
   } catch (error) {
     const mappedError = mapAuthError(error);
     return apiError(mappedError.code, mappedError.message, mappedError.status);

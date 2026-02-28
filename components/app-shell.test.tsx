@@ -24,9 +24,13 @@ describe("AppShell", () => {
     expect(screen.getByText("Child Content")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Apply" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Log In" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Archive" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Candidate File" })
+    ).not.toBeInTheDocument();
   });
 
-  it("hides apply and login links for authenticated users", () => {
+  it("shows authenticated navigation links and hides auth entry links", () => {
     render(
       <AppShell isAuthenticated>
         <div>Child Content</div>
@@ -35,6 +39,8 @@ describe("AppShell", () => {
 
     expect(screen.queryByRole("link", { name: "Apply" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Log In" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Archive" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Candidate File" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Log Out" })).toBeInTheDocument();
   });
 });

@@ -23,12 +23,16 @@ export async function POST(request: Request) {
     email_domain: emailDomain
   });
 
+  const origin = new URL(request.url).origin;
+  const emailRedirectTo = `${origin}/auth/callback?next=${encodeURIComponent("/apply/accepted")}&type=signup`;
+
   try {
     const supabase = createServerSupabaseClient();
     const { data, error } = await supabase.auth.signUp({
       email: parsedPayload.data.email,
       password: parsedPayload.data.password,
       options: {
+        emailRedirectTo,
         data: {
           callsign: parsedPayload.data.callsign
         }
@@ -41,6 +45,11 @@ export async function POST(request: Request) {
         error_code: mappedError.code,
         is_validation_error: false
       });
+      if (mappedError.code === "EMAIL_ALREADY_IN_USE") {
+        trackEvent("auth_apply_duplicate_email_hint_shown", {
+          email_domain: emailDomain
+        });
+      }
       return apiError(mappedError.code, mappedError.message, mappedError.status);
     }
 
@@ -59,6 +68,11 @@ export async function POST(request: Request) {
       error_code: mappedError.code,
       is_validation_error: false
     });
+    if (mappedError.code === "EMAIL_ALREADY_IN_USE") {
+      trackEvent("auth_apply_duplicate_email_hint_shown", {
+        email_domain: emailDomain
+      });
+    }
     return apiError(mappedError.code, mappedError.message, mappedError.status);
   }
 }

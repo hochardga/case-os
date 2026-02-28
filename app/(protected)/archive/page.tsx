@@ -1,16 +1,21 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { ProtectedPageGuard } from "@/components/auth/protected-page-guard";
 import { trackEvent } from "@/lib/analytics/track";
+import { buildLoginRedirect } from "@/lib/auth/redirects";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 type ArchiveViewProps = {
   callsign: string;
 };
 
+const ARCHIVE_ROUTE = "/archive";
+
 function ArchiveView({ callsign }: ArchiveViewProps) {
   return (
     <section className="mx-auto w-full max-w-4xl rounded-lg border border-slate-800 bg-slate-900/60 p-8">
+      <ProtectedPageGuard />
       <h1 className="text-2xl font-semibold text-slate-50">Archive Access</h1>
       <dl className="mt-5 grid grid-cols-1 gap-4 rounded-md border border-slate-800 bg-slate-950/60 p-4 text-sm sm:grid-cols-2">
         <div>
@@ -21,7 +26,7 @@ function ArchiveView({ callsign }: ArchiveViewProps) {
         </div>
         <div>
           <dt className="text-slate-400">Clearance</dt>
-          <dd className="mt-1 font-semibold text-slate-100">Candidate (Phase 1 Placeholder)</dd>
+          <dd className="mt-1 font-semibold text-slate-100">Candidate</dd>
         </div>
       </dl>
       <div className="mt-6 rounded-md border border-cyan-900/40 bg-cyan-950/30 p-4">
@@ -47,12 +52,13 @@ function ArchiveFallback() {
   );
 }
 
-function getE2EBypassUser() {
+async function getE2EBypassUser() {
   if (process.env.PHASE1_E2E_AUTH_BYPASS !== "1") {
     return null;
   }
 
-  const value = cookies().get("phase1-e2e-user")?.value;
+  const cookieStore = await cookies();
+  const value = cookieStore.get("phase1-e2e-user")?.value;
   if (!value) {
     return null;
   }
@@ -65,11 +71,34 @@ function getE2EBypassUser() {
   return { id, callsign };
 }
 
+async function hasSupabaseAuthCookie() {
+  const cookieStore = await cookies();
+  return cookieStore
+    .getAll()
+    .some(
+      (cookie) =>
+        cookie.name.startsWith("sb-") && cookie.name.includes("-auth-token")
+    );
+}
+
+function redirectToLogin(isSessionExpired: boolean): never {
+  const loginRedirect = buildLoginRedirect(ARCHIVE_ROUTE);
+  if (isSessionExpired) {
+    trackEvent("auth_session_expired", {
+      route: ARCHIVE_ROUTE
+    });
+    redirect(`${loginRedirect}&session=expired`);
+  }
+
+  redirect(loginRedirect);
+}
+
 export default async function ArchivePage() {
-  const bypassUser = getE2EBypassUser();
+  const hasAuthCookie = await hasSupabaseAuthCookie();
+  const bypassUser = await getE2EBypassUser();
   if (process.env.PHASE1_E2E_AUTH_BYPASS === "1") {
     if (!bypassUser) {
-      redirect("/login");
+      redirectToLogin(hasAuthCookie);
     }
 
     trackEvent("archive_access_viewed", {
@@ -87,12 +116,12 @@ export default async function ArchivePage() {
     } = await supabase.auth.getUser();
 
     if (!user?.id) {
-      redirect("/login");
+      redirectToLogin(hasAuthCookie);
     }
 
     userId = user.id;
   } catch {
-    redirect("/login");
+    redirectToLogin(hasAuthCookie);
   }
 
   try {

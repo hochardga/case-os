@@ -19,7 +19,13 @@ export default defineConfig({
     env: {
       NEXT_PUBLIC_SUPABASE_URL: "https://example.supabase.co",
       NEXT_PUBLIC_SUPABASE_ANON_KEY: "public-anon-key",
-      PHASE1_E2E_AUTH_BYPASS: "1"
+      PHASE1_E2E_AUTH_BYPASS: "1",
+      ANALYTICS_PROVIDER: "memory",
+      ANALYTICS_TEST_MODE: "1",
+      AUTH_RATE_LIMIT_STORE: "memory",
+      AUTH_RATE_LIMIT_LOGIN_MAX_ATTEMPTS: "1",
+      AUTH_RATE_LIMIT_LOGIN_WINDOW_SECONDS: "60",
+      AUTH_RATE_LIMIT_LOGIN_BLOCK_SECONDS: "120"
     }
   }
 });

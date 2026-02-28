@@ -12,12 +12,14 @@ export function AppShell({ children, isAuthenticated = false }: AppShellProps) {
   const navLinks = [
     { href: "/", label: "Home" },
     ...(isAuthenticated
-      ? []
+      ? [
+          { href: "/archive", label: "Archive" },
+          { href: "/candidate-file", label: "Candidate File" }
+        ]
       : [
           { href: "/apply", label: "Apply" },
           { href: "/login", label: "Log In" }
-        ]),
-    { href: "/archive", label: "Archive Access" }
+        ])
   ];
 
   return (
@@ -52,7 +54,7 @@ export function AppShell({ children, isAuthenticated = false }: AppShellProps) {
       <main className="mx-auto w-full max-w-6xl px-6 py-10">{children}</main>
       <footer className="border-t border-slate-800 bg-slate-950/50">
         <div className="mx-auto w-full max-w-6xl px-6 py-4 text-xs text-slate-400">
-          Ashfall Case Library · Phase 1 Foundation Build
+          Ashfall Case Library · Phase 2 Authentication UX Hardening
         </div>
       </footer>
     </div>

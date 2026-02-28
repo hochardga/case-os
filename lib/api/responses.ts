@@ -18,14 +18,16 @@ export function apiError(
   code: AuthErrorCode | "VALIDATION_ERROR",
   message: string,
   status = 400,
-  fieldErrors?: ValidationFieldErrors
+  fieldErrors?: ValidationFieldErrors,
+  retryAfterSeconds?: number
 ) {
   const payload: ApiError = {
     ok: false,
     error: {
       code,
       message,
-      ...(fieldErrors ? { fieldErrors } : {})
+      ...(fieldErrors ? { fieldErrors } : {}),
+      ...(retryAfterSeconds !== undefined ? { retryAfterSeconds } : {})
     }
   };
 
@@ -36,4 +38,3 @@ export function apiValidationError(error: ZodError, message = "Invalid request p
   const fieldErrors = error.flatten().fieldErrors;
   return apiError("VALIDATION_ERROR", message, 400, fieldErrors);
 }
-

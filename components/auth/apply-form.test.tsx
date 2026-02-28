@@ -43,7 +43,21 @@ describe("ApplyForm", () => {
         "Callsign must be 3-24 characters using letters, numbers, _ or -."
       )
     ).toBeInTheDocument();
+    expect(screen.getByLabelText("Callsign")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText("Callsign")).toHaveAttribute(
+      "aria-describedby",
+      "apply-callsign-error"
+    );
+    expect(screen.getByRole("alert")).toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("shows password requirements before submission", () => {
+    render(<ApplyForm />);
+
+    expect(
+      screen.getByText("Password requirements: at least 8 characters.")
+    ).toBeInTheDocument();
   });
 
   it("disables submit while pending and prevents duplicate submission", async () => {
@@ -87,5 +101,45 @@ describe("ApplyForm", () => {
       expect(pushMock).toHaveBeenCalledWith("/apply/review");
     });
   });
-});
 
+  it("shows duplicate-email recovery links when account may already exist", async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          ok: false,
+          error: {
+            code: "EMAIL_ALREADY_IN_USE",
+            message: "An account may already exist for this email."
+          }
+        }),
+        {
+          status: 409,
+          headers: { "Content-Type": "application/json" }
+        }
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<ApplyForm />);
+
+    fireEvent.change(screen.getByLabelText("Email"), {
+      target: { value: "candidate@example.com" }
+    });
+    fireEvent.change(screen.getByLabelText("Password"), {
+      target: { value: "securepass123" }
+    });
+    fireEvent.change(screen.getByLabelText("Callsign"), {
+      target: { value: "Ash_01" }
+    });
+
+    fireEvent.click(screen.getByTestId("apply-submit"));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("An account may already exist for this email.")
+      ).toBeInTheDocument();
+    });
+    expect(screen.getByRole("link", { name: "Log In" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Reset Password" })).toBeInTheDocument();
+  });
+});

@@ -31,7 +31,9 @@ export function LogoutButton({ isAuthenticated }: LogoutButtonProps) {
       };
 
       if (result.ok) {
-        router.push(result.data?.next ?? "/login");
+        const next = result.data?.next ?? "/";
+        router.replace(next);
+        router.refresh();
         return;
       }
     } catch {
@@ -40,7 +42,8 @@ export function LogoutButton({ isAuthenticated }: LogoutButtonProps) {
       setIsPending(false);
     }
 
-    router.push("/login");
+    router.replace("/");
+    router.refresh();
   }
 
   return (

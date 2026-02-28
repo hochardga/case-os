@@ -40,7 +40,7 @@ test("signup then login reaches archive and renders callsign", async ({ page }) 
   await page.getByTestId("apply-submit").click();
 
   await expect(page).toHaveURL(/\/apply\/review$/);
-  await page.getByRole("link", { name: "Continue to Acceptance" }).click();
+  await page.getByRole("link", { name: "I have verified my email" }).click();
   await expect(page).toHaveURL(/\/apply\/accepted$/);
   await page.getByRole("link", { name: "Log In" }).click();
   await expect(page).toHaveURL(/\/login$/);

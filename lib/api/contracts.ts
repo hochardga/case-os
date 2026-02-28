@@ -13,5 +13,6 @@ export type ApiError = {
     code: AuthErrorCode | "VALIDATION_ERROR";
     message: string;
     fieldErrors?: ValidationFieldErrors;
+    retryAfterSeconds?: number;
   };
 };

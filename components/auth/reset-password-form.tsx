@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import type { ApiError, ApiSuccess, ValidationFieldErrors } from "@/lib/api/contracts";
@@ -14,11 +14,17 @@ type ResetValues = {
   email: string;
 };
 
+type ResetPasswordFormProps = {
+  submitLabel?: string;
+};
+
 const initialValues: ResetValues = {
   email: ""
 };
 
-export function ResetPasswordForm() {
+export function ResetPasswordForm({ submitLabel = "Request Reset Link" }: ResetPasswordFormProps) {
+  const emailRef = useRef<HTMLInputElement>(null);
+  const confirmationRef = useRef<HTMLParagraphElement>(null);
   const [formValues, setFormValues] = useState<ResetValues>(initialValues);
   const [fieldErrors, setFieldErrors] = useState<ValidationFieldErrors>({});
   const [generalError, setGeneralError] = useState<string | null>(null);
@@ -26,6 +32,18 @@ export function ResetPasswordForm() {
     null
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  function focusFirstError(errors: ValidationFieldErrors) {
+    if (errors.email?.[0]) {
+      emailRef.current?.focus();
+    }
+  }
+
+  useEffect(() => {
+    if (confirmationMessage) {
+      confirmationRef.current?.focus();
+    }
+  }, [confirmationMessage]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -39,7 +57,9 @@ export function ResetPasswordForm() {
 
     const parsedValues = resetPasswordSchema.safeParse(formValues);
     if (!parsedValues.success) {
-      setFieldErrors(parsedValues.error.flatten().fieldErrors);
+      const nextFieldErrors = parsedValues.error.flatten().fieldErrors;
+      setFieldErrors(nextFieldErrors);
+      focusFirstError(nextFieldErrors);
       return;
     }
 
@@ -58,6 +78,7 @@ export function ResetPasswordForm() {
         setGeneralError(result.error.message);
         if (result.error.fieldErrors) {
           setFieldErrors(result.error.fieldErrors);
+          focusFirstError(result.error.fieldErrors);
         }
         return;
       }
@@ -81,21 +102,37 @@ export function ResetPasswordForm() {
           className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none ring-cyan-300 focus:ring-2"
           id="reset-email"
           name="email"
+          ref={emailRef}
           onChange={(event) => setFormValues({ email: event.target.value })}
           placeholder="candidate@ashfall.example"
           type="email"
           value={formValues.email}
           disabled={isSubmitting}
+          aria-invalid={Boolean(fieldErrors.email?.[0])}
+          aria-describedby={fieldErrors.email?.[0] ? "reset-email-error" : undefined}
         />
         {fieldErrors.email?.[0] ? (
-          <p className="text-xs text-rose-300">{fieldErrors.email[0]}</p>
+          <p className="text-xs text-rose-300" id="reset-email-error" role="alert">
+            {fieldErrors.email[0]}
+          </p>
         ) : null}
       </div>
 
       {confirmationMessage ? (
-        <p className="text-sm text-emerald-300">{confirmationMessage}</p>
+        <p
+          className="text-sm text-emerald-300"
+          role="status"
+          tabIndex={-1}
+          ref={confirmationRef}
+        >
+          {confirmationMessage}
+        </p>
       ) : null}
-      {generalError ? <p className="text-sm text-rose-300">{generalError}</p> : null}
+      {generalError ? (
+        <p className="text-sm text-rose-300" role="alert">
+          {generalError}
+        </p>
+      ) : null}
 
       <Button
         className="w-full"
@@ -103,9 +140,8 @@ export function ResetPasswordForm() {
         disabled={isSubmitting}
         data-testid="reset-submit"
       >
-        {isSubmitting ? "Requesting..." : "Request Reset Link"}
+        {isSubmitting ? "Requesting..." : submitLabel}
       </Button>
     </form>
   );
 }
-
